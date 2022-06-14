@@ -3,41 +3,67 @@ package uz.gita.mobilebanking
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import uz.gita.mobilebanking.ui.theme.MobileBankingTheme
+import androidx.compose.animation.*
+import com.github.terrakok.modo.Modo
+import com.github.terrakok.modo.android.compose.ComposeRenderImpl
+import com.github.terrakok.modo.android.compose.ScreenTransition
+import com.github.terrakok.modo.android.compose.ScreenTransitionType
+import com.github.terrakok.modo.android.compose.saveState
+import com.github.terrakok.modo.back
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var modo: Modo
+
+    @OptIn(ExperimentalAnimationApi::class)
+    private val render = ComposeRenderImpl(this) {
+        ScreenTransition(
+            transitionSpec = {
+                if (transitionType == ScreenTransitionType.Replace) {
+                    scaleIn(initialScale = 2f) + fadeIn() with fadeOut()
+                } else {
+                    val (initialOffset, targetOffset) = when (transitionType) {
+                        ScreenTransitionType.Pop -> ({ size: Int -> -size }) to ({ size: Int -> size })
+                        else -> ({ size: Int -> size }) to ({ size: Int -> -size })
+                    }
+                    slideInHorizontally(initialOffsetX = initialOffset) with
+                            slideOutHorizontally(targetOffsetX = targetOffset)
+                }
+            }
+        )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MobileBankingTheme {
-                // A surface container using the 'background' color from the theme
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colors.background
-                ) {
-                    Greeting("Android")
-                }
-            }
+
         }
     }
-}
 
-@Composable
-fun Greeting(name: String) {
-    Text(text = "Hello $name!")
-}
 
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    MobileBankingTheme {
-        Greeting("Android")
+    override fun onResume() {
+        super.onResume()
+        modo.render = render
     }
+
+    override fun onPause() {
+        super.onPause()
+        modo.render = null
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        modo.saveState(outState)
+    }
+
+    override fun onBackPressed() {
+        modo.back()
+    }
+
 }
+
+
